@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import MainView from '@/layout/shopping/MainView.vue'
 import RecommendView from '@/layout/shopping/RecommendView.vue'
 import SearchView from '@/layout/shopping/SearchView.vue'
+import AdminView from '@/layout/admin/AdminView.vue'
 
 const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
@@ -23,6 +24,12 @@ const router = createRouter({
           path:"search",
           component:SearchView
         }
+      ]
+    },
+    {
+      path:"/admin",
+      component:AdminView,
+      children:[
       ]
     }
   ],
