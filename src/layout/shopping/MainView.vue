@@ -2,15 +2,17 @@
 import HeaderView from './component/HeaderView.vue';
 import FooterView from './component/FooterView.vue';
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { categories, ordersWithRelations } from '@/mock/shopData';
 
+const router = useRouter();
 const isLoggedIn = ref(false);
 const username = ref('张三');
 const cartCount = ref(2);
 const selectedCategory = ref(0);
 
 function handleLogin() {
-  isLoggedIn.value = true;
+  router.push('/auth/login');
 }
 
 function handleCartClick() {

@@ -7,6 +7,9 @@ import CategoryView from '@/layout/admin/CategoryView.vue'
 import ProductView from '@/layout/admin/ProductView.vue'
 import UserView from '@/layout/admin/UserView.vue'
 import OrderView from '@/layout/admin/OrderView.vue'
+import AuthView from '@/layout/auth/AuthView.vue'
+import LognView from '@/layout/auth/LognView.vue'
+import RegisterView from '@/layout/auth/RegisterView.vue'
 
 const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
@@ -52,6 +55,21 @@ const router = createRouter({
           component: OrderView,
         },
       ]
+    },
+    {
+      path: '/auth',
+      component: AuthView,
+      redirect: '/auth/login',
+      children: [
+        {
+          path: 'login',
+          component: LognView,
+        },
+        {
+          path: 'register',
+          component: RegisterView,
+        },
+      ],
     }
   ],
 })
