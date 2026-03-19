@@ -2,6 +2,7 @@
 import { reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
+import { registerApi } from '@/api/auth'
 
 const router = useRouter()
 const formRef = ref()
@@ -41,10 +42,6 @@ const rules = {
 		{ required: true, message: '请输入用户名', trigger: 'blur' },
 		{ min: 3, max: 16, message: '用户名长度需在 3-16 位', trigger: 'blur' },
 	],
-	phone: [
-		{ required: true, message: '请输入手机号', trigger: 'blur' },
-		{ pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确', trigger: 'blur' },
-	],
 	email: [
 		{ required: true, message: '请输入邮箱', trigger: 'blur' },
 		{ type: 'email', message: '邮箱格式不正确', trigger: 'blur' },
@@ -68,11 +65,20 @@ async function submit() {
 	if (!isValid) return
 
 	loading.value = true
-	setTimeout(() => {
-		loading.value = false
-		ElMessage.success('注册成功，请登录')
+	try {
+		const data = await registerApi({
+			username: form.username,
+			email: form.email,
+			password: form.password,
+		})
+
+		ElMessage.success(data?.message || '注册成功，请登录')
 		goLogin()
-	}, 700)
+	} catch {
+		// Error toast is handled in response interceptor.
+	} finally {
+		loading.value = false
+	}
 }
 </script>
 
@@ -85,10 +91,6 @@ async function submit() {
 			<div class="grid-2">
 				<el-form-item label="用户名" prop="username">
 					<el-input v-model="form.username" placeholder="3-16位用户名" clearable />
-				</el-form-item>
-
-				<el-form-item label="手机号" prop="phone">
-					<el-input v-model="form.phone" placeholder="请输入手机号" clearable />
 				</el-form-item>
 			</div>
 
