@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { categories, orders, products, users } from '@/mock/shopData'
+import { addCategoryApi, getCategoryListApi } from '@/api/admin'
 
 function clone(data) {
   return JSON.parse(JSON.stringify(data))
@@ -11,6 +12,25 @@ function nextId(list) {
     return 1
   }
   return Math.max(...list.map((item) => Number(item.id) || 0)) + 1
+}
+
+function normalizeCategoryList(response) {
+  if (Array.isArray(response)) {
+    return response
+  }
+  if (Array.isArray(response?.data)) {
+    return response.data
+  }
+  if (Array.isArray(response?.rows)) {
+    return response.rows
+  }
+  if (Array.isArray(response?.list)) {
+    return response.list
+  }
+  if (Array.isArray(response?.data?.list)) {
+    return response.data.list
+  }
+  return null
 }
 
 export const useAdminStore = defineStore('admin', () => {
@@ -67,6 +87,24 @@ export const useAdminStore = defineStore('admin', () => {
       gmv: orderList.value.reduce((sum, item) => sum + Number(item.total_amount || 0), 0),
     }
   })
+
+  async function fetchCategoryList() {
+    const response = await getCategoryListApi()
+    const remoteList = normalizeCategoryList(response)
+    if (Array.isArray(remoteList)) {
+      categoryList.value = remoteList.map((item) => ({
+        id: Number(item.id),
+        name: item.name,
+      }))
+    }
+    return categoryList.value
+  }
+
+  async function createCategory(payload) {
+    await addCategoryApi(payload)
+    await fetchCategoryList()
+    return categoryList.value
+  }
 
   function addCategory(payload) {
     categoryList.value.push({
@@ -168,6 +206,8 @@ export const useAdminStore = defineStore('admin', () => {
     productsWithCategory,
     ordersWithRelations,
     dashboardStats,
+    fetchCategoryList,
+    createCategory,
     addCategory,
     updateCategory,
     removeCategory,

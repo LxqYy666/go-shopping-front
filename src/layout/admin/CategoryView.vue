@@ -1,10 +1,11 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAdminStore } from '@/stores/admin'
 
 const adminStore = useAdminStore()
 const keyword = ref('')
+const loading = ref(false)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const form = ref({
@@ -27,6 +28,15 @@ const rows = computed(() =>
 		.filter((item) => item.name.toLowerCase().includes(keyword.value.toLowerCase())),
 )
 
+async function fetchCategories() {
+	loading.value = true
+	try {
+		await adminStore.fetchCategoryList()
+	} finally {
+		loading.value = false
+	}
+}
+
 function openCreate() {
 	isEdit.value = false
 	form.value = { id: null, name: '' }
@@ -39,7 +49,7 @@ function openEdit(row) {
 	dialogVisible.value = true
 }
 
-function saveCategory() {
+async function saveCategory() {
 	if (!form.value.name.trim()) {
 		ElMessage.warning('请填写分类名称')
 		return
@@ -49,7 +59,7 @@ function saveCategory() {
 		adminStore.updateCategory(form.value.id, { name: form.value.name.trim() })
 		ElMessage.success('分类已更新')
 	} else {
-		adminStore.addCategory({ name: form.value.name.trim() })
+		await adminStore.createCategory({ name: form.value.name.trim() })
 		ElMessage.success('分类已新增')
 	}
 
@@ -73,6 +83,10 @@ async function removeCategory(row) {
 		// ignore cancel
 	}
 }
+
+onMounted(() => {
+	fetchCategories()
+})
 </script>
 
 <template>
@@ -90,20 +104,10 @@ async function removeCategory(row) {
 			</div>
 		</div>
 
-		<el-table :data="rows" stripe>
+		<el-table :data="rows" :loading="loading" stripe>
 			<el-table-column prop="id" label="分类 ID" width="100" />
 			<el-table-column prop="name" label="分类名称" min-width="160" />
 			<el-table-column prop="productCount" label="商品数量" width="120" />
-			<el-table-column label="上架中" width="120">
-				<template #default="{ row }">
-					<el-tag type="success">{{ row.onlineCount }}</el-tag>
-				</template>
-			</el-table-column>
-			<el-table-column label="说明" min-width="260">
-				<template #default="{ row }">
-					按 Category.Products 关系显示当前分类下商品数据
-				</template>
-			</el-table-column>
 			<el-table-column label="操作" width="180" align="center">
 				<template #default="{ row }">
 					<el-space>
