@@ -1,11 +1,12 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAdminStore } from '@/stores/admin'
 
 const adminStore = useAdminStore()
 const statusFilter = ref('all')
 const categoryFilter = ref(0)
+const loading = ref(false)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const form = ref({
@@ -112,6 +113,19 @@ function toggleStatus(row) {
 	adminStore.updateProduct(row.id, { status: nextStatus })
 	ElMessage.success(`商品已${nextStatus === 'on' ? '上架' : '下架'}`)
 }
+
+async function fetchProducts() {
+	loading.value = true
+	try {
+		await Promise.all([adminStore.fetchCategoryList(), adminStore.fetchProductList()])
+	} finally {
+		loading.value = false
+	}
+}
+
+onMounted(() => {
+	fetchProducts()
+})
 </script>
 
 <template>
@@ -138,7 +152,7 @@ function toggleStatus(row) {
 			</div>
 		</div>
 
-		<el-table :data="rows" stripe>
+		<el-table :data="rows" :loading="loading" stripe>
 			<el-table-column label="商品" min-width="260">
 				<template #default="{ row }">
 					<div class="product-cell">
@@ -153,7 +167,7 @@ function toggleStatus(row) {
 			<el-table-column label="分类" min-width="120">
 				<template #default="{ row }">{{ row.category?.name }}</template>
 			</el-table-column>
-			<el-table-column label="价格" width="100">
+			<el-table-column label="价格" width="140">
 				<template #default="{ row }">¥{{ row.price.toFixed(2) }}</template>
 			</el-table-column>
 			<el-table-column prop="stock" label="库存" width="100" />
@@ -202,28 +216,17 @@ function toggleStatus(row) {
 					<el-input v-model="form.image_url" placeholder="https://..." />
 				</el-form-item>
 				<el-row :gutter="10">
-					<el-col :span="8">
+					<el-col :span="10">
 						<el-form-item label="价格">
-							<el-input-number v-model="form.price" :min="0" :precision="2" />
+							<el-input-number v-model="form.price" :min="0" :precision="2" style="width: 100%" />
 						</el-form-item>
 					</el-col>
-					<el-col :span="8">
+					<el-col :span="10">
 						<el-form-item label="库存">
-							<el-input-number v-model="form.stock" :min="0" />
-						</el-form-item>
-					</el-col>
-					<el-col :span="8">
-						<el-form-item label="销量">
-							<el-input-number v-model="form.sold_count" :min="0" />
+							<el-input-number v-model="form.stock" :min="0" style="width: 100%" />
 						</el-form-item>
 					</el-col>
 				</el-row>
-				<el-form-item label="状态">
-					<el-radio-group v-model="form.status">
-						<el-radio label="on">上架</el-radio>
-						<el-radio label="off">下架</el-radio>
-					</el-radio-group>
-				</el-form-item>
 			</el-form>
 			<template #footer>
 				<el-button @click="dialogVisible = false">取消</el-button>

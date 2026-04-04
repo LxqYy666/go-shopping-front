@@ -1,20 +1,35 @@
 <script setup>
-import { computed, ref } from 'vue'
-import { categories, productsWithCategory } from '@/mock/shopData'
+import { computed, onMounted, ref } from 'vue'
+import { useAdminStore } from '@/stores/admin'
 
 const keyword = ref('')
 const categoryId = ref(0)
+const loading = ref(false)
+const adminStore = useAdminStore()
 
-const categoryOptions = [{ id: 0, name: '全部分类' }, ...categories]
+const categoryOptions = computed(() => [{ id: 0, name: '全部分类' }, ...adminStore.categoryList])
 
 const results = computed(() => {
-    return productsWithCategory.filter((item) => {
+    return adminStore.productsWithCategory.filter((item) => {
         const matchKeyword =
             item.name.toLowerCase().includes(keyword.value.toLowerCase()) ||
             item.desc.toLowerCase().includes(keyword.value.toLowerCase())
         const matchCategory = categoryId.value === 0 || item.category_id === categoryId.value
         return matchKeyword && matchCategory
     })
+})
+
+async function fetchData() {
+    loading.value = true
+    try {
+        await Promise.all([adminStore.fetchCategoryList(), adminStore.fetchProductList()])
+    } finally {
+        loading.value = false
+    }
+}
+
+onMounted(() => {
+    fetchData()
 })
 </script>
 
@@ -34,7 +49,7 @@ const results = computed(() => {
 
         <p class="summary">共找到 {{ results.length }} 条商品记录</p>
 
-        <el-table :data="results" stripe>
+        <el-table :data="results" :loading="loading" stripe>
             <el-table-column label="商品" min-width="260">
                 <template #default="{ row }">
                     <div class="cell-product">

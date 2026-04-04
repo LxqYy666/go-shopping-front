@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const props = defineProps({
 	isLoggedIn: {
@@ -23,12 +23,21 @@ const props = defineProps({
 
 const emit = defineEmits(['login', 'cart-click'])
 const route = useRoute()
+const router = useRouter()
 
-const navs = [
-	{ label: '首页推荐', to: '/shopping/recommend' },
-	{ label: '商品搜索', to: '/shopping/search' },
-	{ label: '后台管理', to: '/admin' },
-]
+const navs = computed(() => {
+	const list = [
+		{ label: '首页推荐', to: '/shopping/recommend' },
+		{ label: '商品搜索', to: '/shopping/search' },
+	]
+	if (props.isLoggedIn) {
+		list.push({ label: '个人中心', to: '/profile/info' })
+	}
+	if ((localStorage.getItem('role') || '').toLowerCase() === 'admin') {
+		list.push({ label: '后台管理', to: '/admin' })
+	}
+	return list
+})
 
 const displayName = computed(() => {
 	if (props.isLoggedIn && props.username) {
@@ -40,11 +49,20 @@ const displayName = computed(() => {
 function handleUserClick() {
 	if (!props.isLoggedIn) {
 		emit('login')
+		return
 	}
+	router.push('/profile/info')
 }
 
 function handleCartClick() {
 	emit('cart-click')
+}
+
+function isNavActive(path) {
+	if (path.startsWith('/profile')) {
+		return route.path.startsWith('/profile')
+	}
+	return route.path.startsWith(path)
 }
 </script>
 
@@ -60,7 +78,7 @@ function handleCartClick() {
 				v-for="item in navs"
 				:key="item.to"
 				:to="item.to"
-				:class="['nav-link', route.path.startsWith(item.to) ? 'active' : '']"
+				:class="['nav-link', isNavActive(item.to) ? 'active' : '']"
 			>
 				{{ item.label }}
 			</RouterLink>

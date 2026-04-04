@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from 'vue'
-import { productsWithCategory } from '@/mock/shopData'
+import { computed, onMounted } from 'vue'
+import { useAdminStore } from '@/stores/admin'
 
 const props = defineProps({
     selectedCategory: {
@@ -9,20 +9,30 @@ const props = defineProps({
     },
 })
 
+const adminStore = useAdminStore()
+
 const products = computed(() =>
-    productsWithCategory.filter((item) => {
-        const matchCategory =
-            props.selectedCategory === 0 || item.category_id === props.selectedCategory
-        return matchCategory && item.status === 'on'
-    }),
+    adminStore.productsWithCategory
+        .filter((item) => {
+            const matchCategory =
+                props.selectedCategory === 0 || item.category_id === props.selectedCategory
+            return matchCategory && item.status === 'on'
+        })
+        .sort((a, b) => Number(b.sold_count || 0) - Number(a.sold_count || 0))
+        .slice(0, 10),
 )
+
+onMounted(() => {
+    adminStore.fetchCategoryList()
+    adminStore.fetchProductList()
+})
 </script>
 
 <template>
     <section class="recommend-wrap">
         <div class="section-head">
             <h2>猜你喜欢</h2>
-            <small>当前展示上架商品 {{ products.length }} 件</small>
+            <small>当前展示销量前 10 商品 {{ products.length }} 件</small>
         </div>
 
         <div class="product-grid">

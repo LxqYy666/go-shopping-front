@@ -33,6 +33,23 @@ function goShopping() {
 	router.push('/shopping')
 }
 
+function resolveRole(data) {
+	return data?.role || data?.data?.role || data?.user?.role || data?.data?.user?.role || ''
+}
+
+function redirectByRole(role) {
+	const normalizedRole = String(role || '').toLowerCase()
+	if (normalizedRole === 'admin') {
+		router.push('/admin')
+		return
+	}
+	goShopping()
+}
+
+function resolveUser(data) {
+	return data?.user || data?.data?.user || {}
+}
+
 async function submit() {
 	if (!formRef.value) return
 
@@ -51,8 +68,26 @@ async function submit() {
 			localStorage.setItem('token', data.token)
 		}
 
+		const role = resolveRole(data)
+		if (role) {
+			localStorage.setItem('role', role)
+		}
+
+		const user = resolveUser(data)
+		const userId = Number(user?.id || data?.user_id || data?.data?.user_id)
+		if (Number.isFinite(userId) && userId > 0) {
+			localStorage.setItem('userId', String(userId))
+		}
+		localStorage.setItem('username', user?.username || form.username)
+		if (user?.email) {
+			localStorage.setItem('email', user.email)
+		}
+		if (user?.avatar) {
+			localStorage.setItem('avatar', user.avatar)
+		}
+
 		ElMessage.success(data?.message || `欢迎回来，${form.username}`)
-		goShopping()
+		redirectByRole(role)
 	} catch {
 		// Error toast is handled in response interceptor.
 	} finally {

@@ -1,11 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { categories, orders, products, users } from '@/mock/shopData'
-import { addCategoryApi, getCategoryListApi } from '@/api/admin'
-
-function clone(data) {
-  return JSON.parse(JSON.stringify(data))
-}
+import { addCategoryApi, getCategoryListApi, getProductListApi } from '@/api/admin'
 
 function nextId(list) {
   if (list.length === 0) {
@@ -33,11 +28,35 @@ function normalizeCategoryList(response) {
   return null
 }
 
+function normalizeProductList(response) {
+  if (Array.isArray(response)) {
+    return response
+  }
+  if (Array.isArray(response?.data)) {
+    return response.data
+  }
+  if (Array.isArray(response?.rows)) {
+    return response.rows
+  }
+  if (Array.isArray(response?.list)) {
+    return response.list
+  }
+  if (Array.isArray(response?.data?.list)) {
+    return response.data.list
+  }
+  return null
+}
+
 export const useAdminStore = defineStore('admin', () => {
-  const categoryList = ref(clone(categories))
-  const productList = ref(clone(products))
-  const userList = ref(clone(users))
-  const orderList = ref(clone(orders))
+  const categoryList = ref([])
+  const productList = ref([])
+  const userList = ref([])
+  const orderList = ref([])
+
+  const currentUserId = computed(() => {
+    const raw = Number(localStorage.getItem('userId'))
+    return Number.isFinite(raw) && raw > 0 ? raw : 0
+  })
 
   const categoryMap = computed(() => {
     return categoryList.value.reduce((acc, item) => {
@@ -78,6 +97,27 @@ export const useAdminStore = defineStore('admin', () => {
     }))
   })
 
+  const currentUser = computed(() => {
+    if (currentUserId.value) {
+      const byId = userList.value.find((item) => item.id === currentUserId.value)
+      if (byId) {
+        return byId
+      }
+    }
+    const loginName = (localStorage.getItem('username') || '').trim()
+    if (loginName) {
+      return userList.value.find((item) => item.username === loginName) || null
+    }
+    return null
+  })
+
+  const myOrders = computed(() => {
+    if (!currentUser.value) {
+      return []
+    }
+    return ordersWithRelations.value.filter((order) => order.user_id === currentUser.value.id)
+  })
+
   const dashboardStats = computed(() => {
     return {
       categoryCount: categoryList.value.length,
@@ -104,6 +144,25 @@ export const useAdminStore = defineStore('admin', () => {
     await addCategoryApi(payload)
     await fetchCategoryList()
     return categoryList.value
+  }
+
+  async function fetchProductList() {
+    const response = await getProductListApi()
+    const remoteList = normalizeProductList(response)
+    if (Array.isArray(remoteList)) {
+      productList.value = remoteList.map((item) => ({
+        id: Number(item.id),
+        category_id: Number(item.category_id),
+        name: item.name || '',
+        desc: item.desc || '',
+        price: Number(item.price) || 0,
+        stock: Number(item.stock) || 0,
+        image_url: item.image_url || '',
+        sold_count: Number(item.sold_count) || 0,
+        status: item.status || 'off',
+      }))
+    }
+    return productList.value
   }
 
   function addCategory(payload) {
@@ -198,15 +257,64 @@ export const useAdminStore = defineStore('admin', () => {
     return true
   }
 
+  function ensureCurrentUser() {
+    if (currentUser.value) {
+      return currentUser.value
+    }
+
+    const username = (localStorage.getItem('username') || '').trim()
+    if (!username) {
+      return null
+    }
+
+    const payload = {
+      username,
+      email: localStorage.getItem('email') || '',
+      avatar: localStorage.getItem('avatar') || '',
+      role: localStorage.getItem('role') || 'user',
+      status: 'active',
+    }
+    addUser(payload)
+
+    const createdUser = userList.value[userList.value.length - 1] || null
+    if (createdUser) {
+      localStorage.setItem('userId', String(createdUser.id))
+    }
+    return createdUser
+  }
+
+  function saveCurrentUserProfile(payload) {
+    const user = ensureCurrentUser()
+    if (!user) {
+      return null
+    }
+
+    updateUser(user.id, {
+      username: payload.username,
+      email: payload.email,
+      avatar: payload.avatar || '',
+    })
+
+    localStorage.setItem('username', payload.username)
+    localStorage.setItem('email', payload.email)
+    localStorage.setItem('avatar', payload.avatar || '')
+
+    return userList.value.find((item) => item.id === user.id) || null
+  }
+
   return {
     categoryList,
     productList,
     userList,
     orderList,
+    currentUserId,
+    currentUser,
+    myOrders,
     productsWithCategory,
     ordersWithRelations,
     dashboardStats,
     fetchCategoryList,
+    fetchProductList,
     createCategory,
     addCategory,
     updateCategory,
@@ -217,5 +325,7 @@ export const useAdminStore = defineStore('admin', () => {
     addUser,
     updateUser,
     updateOrder,
+    ensureCurrentUser,
+    saveCurrentUserProfile,
   }
 })
