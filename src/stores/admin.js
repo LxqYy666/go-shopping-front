@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { addCategoryApi, getCategoryListApi, getProductListApi } from '@/api/admin'
+import { addCategoryApi, getCategoryListApi, getProductListApi, getUserListApi } from '@/api/admin'
 
 function nextId(list) {
   if (list.length === 0) {
@@ -29,6 +29,25 @@ function normalizeCategoryList(response) {
 }
 
 function normalizeProductList(response) {
+  if (Array.isArray(response)) {
+    return response
+  }
+  if (Array.isArray(response?.data)) {
+    return response.data
+  }
+  if (Array.isArray(response?.rows)) {
+    return response.rows
+  }
+  if (Array.isArray(response?.list)) {
+    return response.list
+  }
+  if (Array.isArray(response?.data?.list)) {
+    return response.data.list
+  }
+  return null
+}
+
+function normalizeUserList(response) {
   if (Array.isArray(response)) {
     return response
   }
@@ -163,6 +182,24 @@ export const useAdminStore = defineStore('admin', () => {
       }))
     }
     return productList.value
+  }
+
+  async function fetchUserList() {
+    const response = await getUserListApi()
+    const remoteList = normalizeUserList(response)
+    if (Array.isArray(remoteList)) {
+      userList.value = remoteList.map((item) => ({
+        id: Number(item.id),
+        username: item.username || '',
+        email: item.email || '',
+        avatar: item.avatar || '',
+        role: item.role || 'user',
+        status: item.status || 'active',
+        created_at: item.created_at || '',
+        orders_count:item.orders_count || 0
+      }))
+    }
+    return userList.value
   }
 
   function addCategory(payload) {
@@ -315,6 +352,7 @@ export const useAdminStore = defineStore('admin', () => {
     dashboardStats,
     fetchCategoryList,
     fetchProductList,
+    fetchUserList,
     createCategory,
     addCategory,
     updateCategory,

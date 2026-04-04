@@ -1,9 +1,10 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAdminStore } from '@/stores/admin'
 
 const adminStore = useAdminStore()
+const loading = ref(false)
 const roleFilter = ref('all')
 const statusFilter = ref('all')
 const dialogVisible = ref(false)
@@ -86,11 +87,18 @@ function toggleStatus(row) {
 	ElMessage.success(`用户已${nextStatus === 'active' ? '启用' : '禁用'}`)
 }
 
-function toggleRole(row) {
-	const nextRole = row.role === 'admin' ? 'user' : 'admin'
-	adminStore.updateUser(row.id, { role: nextRole })
-	ElMessage.success(`角色已切换为 ${nextRole}`)
+async function fetchUsers() {
+	loading.value = true
+	try {
+		await adminStore.fetchUserList()
+	} finally {
+		loading.value = false
+	}
 }
+
+onMounted(() => {
+	fetchUsers()
+})
 </script>
 
 <template>
@@ -118,7 +126,7 @@ function toggleRole(row) {
 			</div>
 		</div>
 
-		<el-table :data="rows" stripe>
+		<el-table :data="rows" :loading="loading" stripe>
 			<el-table-column label="用户" min-width="200">
 				<template #default="{ row }">
 					<div class="user-cell">
@@ -140,13 +148,12 @@ function toggleRole(row) {
 					<el-tag :type="row.status === 'active' ? 'success' : 'warning'">{{ row.status }}</el-tag>
 				</template>
 			</el-table-column>
-			<el-table-column prop="orderCount" label="订单数" width="100" align="center" />
+			<el-table-column prop="orders_count" label="订单数" width="100" align="center" />
 			<el-table-column prop="created_at" label="注册时间" min-width="160" />
 			<el-table-column label="操作" width="240" align="center">
 				<template #default="{ row }">
 					<el-space>
 						<el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-						<el-button link type="warning" @click="toggleRole(row)">切换角色</el-button>
 						<el-button link type="danger" @click="toggleStatus(row)">
 							{{ row.status === 'active' ? '禁用' : '启用' }}
 						</el-button>
