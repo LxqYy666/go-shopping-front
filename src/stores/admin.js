@@ -1,50 +1,21 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { addCategoryApi, getCategoryListApi, getProductListApi, getUserListApi } from '@/api/admin'
+import { 
+  addCategoryApi, 
+  getUserListApi,
+  getOrderListApi,
+  addProductApi,
+  updateProductApi,
+  deleteProductApi,
+  updateOrderApi
+} from '@/api/admin'
+import { useProductStore } from './product'
 
 function nextId(list) {
   if (list.length === 0) {
     return 1
   }
   return Math.max(...list.map((item) => Number(item.id) || 0)) + 1
-}
-
-function normalizeCategoryList(response) {
-  if (Array.isArray(response)) {
-    return response
-  }
-  if (Array.isArray(response?.data)) {
-    return response.data
-  }
-  if (Array.isArray(response?.rows)) {
-    return response.rows
-  }
-  if (Array.isArray(response?.list)) {
-    return response.list
-  }
-  if (Array.isArray(response?.data?.list)) {
-    return response.data.list
-  }
-  return null
-}
-
-function normalizeProductList(response) {
-  if (Array.isArray(response)) {
-    return response
-  }
-  if (Array.isArray(response?.data)) {
-    return response.data
-  }
-  if (Array.isArray(response?.rows)) {
-    return response.rows
-  }
-  if (Array.isArray(response?.list)) {
-    return response.list
-  }
-  if (Array.isArray(response?.data?.list)) {
-    return response.data.list
-  }
-  return null
 }
 
 function normalizeUserList(response) {
@@ -66,43 +37,41 @@ function normalizeUserList(response) {
   return null
 }
 
+function normalizeOrderList(response) {
+  if (Array.isArray(response)) {
+    return response
+  }
+  if (Array.isArray(response?.data)) {
+    return response.data
+  }
+  if (Array.isArray(response?.rows)) {
+    return response.rows
+  }
+  if (Array.isArray(response?.list)) {
+    return response.list
+  }
+  if (Array.isArray(response?.data?.list)) {
+    return response.data.list
+  }
+  return null
+}
+
 export const useAdminStore = defineStore('admin', () => {
-  const categoryList = ref([])
-  const productList = ref([])
+  const productStore = useProductStore()
   const userList = ref([])
   const orderList = ref([])
 
-  const currentUserId = computed(() => {
-    const raw = Number(localStorage.getItem('userId'))
-    return Number.isFinite(raw) && raw > 0 ? raw : 0
-  })
-
-  const categoryMap = computed(() => {
-    return categoryList.value.reduce((acc, item) => {
-      acc[item.id] = item
-      return acc
-    }, {})
-  })
-
-  const productMap = computed(() => {
-    return productList.value.reduce((acc, item) => {
-      acc[item.id] = item
-      return acc
-    }, {})
-  })
+  const categoryList = computed(() => productStore.categoryList)
+  const productList = computed(() => productStore.productList)
+  const categoryMap = computed(() => productStore.categoryMap)
+  const productMap = computed(() => productStore.productMap)
+  const productsWithCategory = computed(() => productStore.productsWithCategory)
 
   const userMap = computed(() => {
     return userList.value.reduce((acc, item) => {
       acc[item.id] = item
       return acc
     }, {})
-  })
-
-  const productsWithCategory = computed(() => {
-    return productList.value.map((item) => ({
-      ...item,
-      category: categoryMap.value[item.category_id] || null,
-    }))
   })
 
   const ordersWithRelations = computed(() => {
@@ -116,27 +85,6 @@ export const useAdminStore = defineStore('admin', () => {
     }))
   })
 
-  const currentUser = computed(() => {
-    if (currentUserId.value) {
-      const byId = userList.value.find((item) => item.id === currentUserId.value)
-      if (byId) {
-        return byId
-      }
-    }
-    const loginName = (localStorage.getItem('username') || '').trim()
-    if (loginName) {
-      return userList.value.find((item) => item.username === loginName) || null
-    }
-    return null
-  })
-
-  const myOrders = computed(() => {
-    if (!currentUser.value) {
-      return []
-    }
-    return ordersWithRelations.value.filter((order) => order.user_id === currentUser.value.id)
-  })
-
   const dashboardStats = computed(() => {
     return {
       categoryCount: categoryList.value.length,
@@ -148,15 +96,7 @@ export const useAdminStore = defineStore('admin', () => {
   })
 
   async function fetchCategoryList() {
-    const response = await getCategoryListApi()
-    const remoteList = normalizeCategoryList(response)
-    if (Array.isArray(remoteList)) {
-      categoryList.value = remoteList.map((item) => ({
-        id: Number(item.id),
-        name: item.name,
-      }))
-    }
-    return categoryList.value
+    return await productStore.fetchCategoryList()
   }
 
   async function createCategory(payload) {
@@ -166,22 +106,7 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   async function fetchProductList() {
-    const response = await getProductListApi()
-    const remoteList = normalizeProductList(response)
-    if (Array.isArray(remoteList)) {
-      productList.value = remoteList.map((item) => ({
-        id: Number(item.id),
-        category_id: Number(item.category_id),
-        name: item.name || '',
-        desc: item.desc || '',
-        price: Number(item.price) || 0,
-        stock: Number(item.stock) || 0,
-        image_url: item.image_url || '',
-        sold_count: Number(item.sold_count) || 0,
-        status: item.status || 'off',
-      }))
-    }
-    return productList.value
+    return await productStore.fetchProductList()
   }
 
   async function fetchUserList() {
@@ -202,11 +127,39 @@ export const useAdminStore = defineStore('admin', () => {
     return userList.value
   }
 
+  async function fetchOrderList() {
+    const response = await getOrderListApi()
+    const remoteList = normalizeOrderList(response)
+    if (Array.isArray(remoteList)) {
+      orderList.value = remoteList.map((item) => ({
+        id: Number(item.id),
+        user_id: Number(item.user_id),
+        total_amount: Number(item.total_amount) || 0,
+        status: item.status || 'pending',
+        receiver_addr: item.receiver_addr || '',
+        receiver_name: item.receiver_name || '',
+        receiver_phone: item.receiver_phone || '',
+        remark: item.remark || '',
+        created_at: item.created_at || '',
+        user: item.user || null,
+        items: Array.isArray(item.items) ? item.items.map((orderItem) => ({
+          id: Number(orderItem.id),
+          product_id: Number(orderItem.product_id),
+          quantity: Number(orderItem.quantity) || 0,
+          total_price: Number(orderItem.total_price) || 0,
+          product: orderItem.product || null,
+        })) : [],
+      }))
+    }
+    return orderList.value
+  }
+
   function addCategory(payload) {
-    categoryList.value.push({
+    const newCategory = {
       id: nextId(categoryList.value),
       name: payload.name,
-    })
+    }
+    productStore.categoryList.value.push(newCategory)
   }
 
   function updateCategory(id, payload) {
@@ -214,7 +167,7 @@ export const useAdminStore = defineStore('admin', () => {
     if (idx === -1) {
       return false
     }
-    categoryList.value[idx] = { ...categoryList.value[idx], ...payload }
+    productStore.categoryList.value[idx] = { ...categoryList.value[idx], ...payload }
     return true
   }
 
@@ -223,12 +176,12 @@ export const useAdminStore = defineStore('admin', () => {
     if (usingCount > 0) {
       return { ok: false, message: '该分类下还有商品，请先处理商品后再删除。' }
     }
-    categoryList.value = categoryList.value.filter((item) => item.id !== id)
+    productStore.categoryList.value = categoryList.value.filter((item) => item.id !== id)
     return { ok: true }
   }
 
   function addProduct(payload) {
-    productList.value.push({
+    const newProduct = {
       id: nextId(productList.value),
       category_id: payload.category_id,
       name: payload.name,
@@ -238,7 +191,10 @@ export const useAdminStore = defineStore('admin', () => {
       image_url: payload.image_url || '',
       sold_count: Number(payload.sold_count) || 0,
       status: payload.status || 'on',
-    })
+    }
+    productStore.productList.push(newProduct)
+    // 同步到后端
+    addProductApi(payload).catch(console.error)
   }
 
   function updateProduct(id, payload) {
@@ -246,22 +202,26 @@ export const useAdminStore = defineStore('admin', () => {
     if (idx === -1) {
       return false
     }
-    productList.value[idx] = {
+    productStore.productList.value[idx] = {
       ...productList.value[idx],
       ...payload,
       price: Number(payload.price ?? productList.value[idx].price),
       stock: Number(payload.stock ?? productList.value[idx].stock),
       sold_count: Number(payload.sold_count ?? productList.value[idx].sold_count),
     }
+    // 同步到后端
+    updateProductApi(id, payload).catch(console.error)
     return true
   }
 
   function removeProduct(id) {
-    productList.value = productList.value.filter((item) => item.id !== id)
+    productStore.productList.value = productList.value.filter((item) => item.id !== id)
     orderList.value = orderList.value.map((order) => ({
       ...order,
       items: (order.items || []).filter((item) => item.product_id !== id),
     }))
+    // 同步到后端
+    deleteProductApi(id).catch(console.error)
   }
 
   function updateUser(id, payload) {
@@ -291,52 +251,9 @@ export const useAdminStore = defineStore('admin', () => {
       return false
     }
     orderList.value[idx] = { ...orderList.value[idx], ...payload }
+    // 同步到后端
+    updateOrderApi(id, payload).catch(console.error)
     return true
-  }
-
-  function ensureCurrentUser() {
-    if (currentUser.value) {
-      return currentUser.value
-    }
-
-    const username = (localStorage.getItem('username') || '').trim()
-    if (!username) {
-      return null
-    }
-
-    const payload = {
-      username,
-      email: localStorage.getItem('email') || '',
-      avatar: localStorage.getItem('avatar') || '',
-      role: localStorage.getItem('role') || 'user',
-      status: 'active',
-    }
-    addUser(payload)
-
-    const createdUser = userList.value[userList.value.length - 1] || null
-    if (createdUser) {
-      localStorage.setItem('userId', String(createdUser.id))
-    }
-    return createdUser
-  }
-
-  function saveCurrentUserProfile(payload) {
-    const user = ensureCurrentUser()
-    if (!user) {
-      return null
-    }
-
-    updateUser(user.id, {
-      username: payload.username,
-      email: payload.email,
-      avatar: payload.avatar || '',
-    })
-
-    localStorage.setItem('username', payload.username)
-    localStorage.setItem('email', payload.email)
-    localStorage.setItem('avatar', payload.avatar || '')
-
-    return userList.value.find((item) => item.id === user.id) || null
   }
 
   return {
@@ -344,15 +261,16 @@ export const useAdminStore = defineStore('admin', () => {
     productList,
     userList,
     orderList,
-    currentUserId,
-    currentUser,
-    myOrders,
+    categoryMap,
+    productMap,
+    userMap,
     productsWithCategory,
     ordersWithRelations,
     dashboardStats,
     fetchCategoryList,
     fetchProductList,
     fetchUserList,
+    fetchOrderList,
     createCategory,
     addCategory,
     updateCategory,
@@ -363,7 +281,5 @@ export const useAdminStore = defineStore('admin', () => {
     addUser,
     updateUser,
     updateOrder,
-    ensureCurrentUser,
-    saveCurrentUserProfile,
   }
 })

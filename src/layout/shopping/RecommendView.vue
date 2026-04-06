@@ -1,6 +1,9 @@
 <script setup>
 import { computed, onMounted } from 'vue'
-import { useAdminStore } from '@/stores/admin'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { useCartStore } from '@/stores/cart'
+import { useProductStore } from '@/stores/product'
 
 const props = defineProps({
     selectedCategory: {
@@ -9,22 +12,45 @@ const props = defineProps({
     },
 })
 
-const adminStore = useAdminStore()
+const router = useRouter()
+const cartStore = useCartStore()
+const productStore = useProductStore()
 
-const products = computed(() =>
-    adminStore.productsWithCategory
+const products = computed(() => {
+    return productStore.productsWithCategory
         .filter((item) => {
             const matchCategory =
                 props.selectedCategory === 0 || item.category_id === props.selectedCategory
             return matchCategory && item.status === 'on'
         })
         .sort((a, b) => Number(b.sold_count || 0) - Number(a.sold_count || 0))
-        .slice(0, 10),
-)
+        .slice(0, 10)
+})
 
-onMounted(() => {
-    adminStore.fetchCategoryList()
-    adminStore.fetchProductList()
+async function addToCart(product) {
+    const token = localStorage.getItem('token')
+    if (!token) {
+        ElMessage.warning('请先登录')
+        router.push('/auth/login')
+        return
+    }
+
+    if (product.stock < 1) {
+        ElMessage.warning('商品库存不足')
+        return
+    }
+
+    try {
+        await cartStore.addToCart(product.id, 1)
+        ElMessage.success('已添加到购物车')
+    } catch (error) {
+        ElMessage.error('添加失败')
+    }
+}
+
+onMounted(async () => {
+    await productStore.fetchCategoryList()
+    await productStore.fetchProductList()
 })
 </script>
 
@@ -43,8 +69,18 @@ onMounted(() => {
                     <h3>{{ item.name }}</h3>
                     <p>{{ item.desc }}</p>
                     <footer>
-                        <strong>¥{{ item.price.toFixed(2) }}</strong>
-                        <span>已售 {{ item.sold_count }}</span>
+                        <div class="price-info">
+                            <strong>¥{{ item.price.toFixed(2) }}</strong>
+                            <span>已售 {{ item.sold_count }}</span>
+                        </div>
+                        <el-button 
+                            type="primary" 
+                            size="small"
+                            :disabled="item.stock < 1"
+                            @click="addToCart(item)"
+                        >
+                            {{ item.stock < 1 ? '缺货' : '加入购物车' }}
+                        </el-button>
                     </footer>
                 </div>
             </article>
@@ -115,10 +151,19 @@ footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.price-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 footer strong {
     color: #c05621;
+    font-size: 18px;
 }
 
 footer span {

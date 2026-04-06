@@ -1,9 +1,9 @@
 <script setup>
 import { computed, onMounted, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-import { useAdminStore } from '@/stores/admin'
+import { useUserStore } from '@/stores/user'
 
-const adminStore = useAdminStore()
+const userStore = useUserStore()
 
 const form = reactive({
   username: '',
@@ -11,10 +11,10 @@ const form = reactive({
   avatar: '',
 })
 
-const currentUser = computed(() => adminStore.currentUser)
+const currentUser = computed(() => userStore.currentUser)
 
 function fillForm() {
-  const user = adminStore.ensureCurrentUser()
+  const user = currentUser.value
   if (!user) {
     return
   }
@@ -23,7 +23,7 @@ function fillForm() {
   form.avatar = user.avatar || ''
 }
 
-function saveProfile() {
+async function saveProfile() {
   if (!form.username.trim()) {
     ElMessage.warning('请填写用户名')
     return
@@ -33,21 +33,24 @@ function saveProfile() {
     return
   }
 
-  const saved = adminStore.saveCurrentUserProfile({
-    username: form.username.trim(),
-    email: form.email.trim(),
-    avatar: form.avatar.trim(),
-  })
-
-  if (!saved) {
-    ElMessage.warning('请先登录后再完善资料')
-    return
+  try {
+    userStore.updateUserInfo({
+      username: form.username.trim(),
+      email: form.email.trim(),
+      avatar: form.avatar.trim(),
+    })
+    ElMessage.success('个人信息已保存')
+  } catch (error) {
+    ElMessage.error('保存失败')
   }
-
-  ElMessage.success('个人信息已保存')
 }
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    await userStore.fetchUserInfo()
+  } catch (error) {
+    console.error('获取用户信息失败', error)
+  }
   fillForm()
 })
 </script>

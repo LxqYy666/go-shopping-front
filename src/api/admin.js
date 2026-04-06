@@ -15,3 +15,23 @@ export function getUserListApi() {
 export function addCategoryApi(payload) {
   return request.post('/admin/category/add', payload)
 }
+
+export function addProductApi(payload) {
+  return request.post('/admin/product/add', payload)
+}
+
+export function updateProductApi(id, payload) {
+  return request.put(`/admin/product/${id}`, payload)
+}
+
+export function deleteProductApi(id) {
+  return request.delete(`/admin/product/${id}`)
+}
+
+export function getOrderListApi() {
+  return request.get('/admin/order/list')
+}
+
+export function updateOrderApi(id, payload) {
+  return request.put(`/admin/order/${id}`, payload)
+}

@@ -1,7 +1,8 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Box, Grid, List, User } from '@element-plus/icons-vue'
+import { Box, Grid, List, User, SwitchButton } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAdminStore } from '@/stores/admin'
 
 const route = useRoute()
@@ -24,8 +25,33 @@ const topCards = computed(() => [
   { label: '订单总数', value: adminStore.dashboardStats.orderCount },
 ])
 
+const username = computed(() => localStorage.getItem('username') || '管理员')
+
 function handleMenuSelect(index) {
   router.push(index)
+}
+
+async function handleLogout() {
+  try {
+    await ElMessageBox.confirm('确定要退出登录吗？', '退出确认', {
+      type: 'warning',
+      confirmButtonText: '退出',
+      cancelButtonText: '取消',
+    })
+    
+    // 清除本地存储
+    localStorage.removeItem('token')
+    localStorage.removeItem('username')
+    localStorage.removeItem('email')
+    localStorage.removeItem('role')
+    localStorage.removeItem('userId')
+    localStorage.removeItem('avatar')
+    
+    ElMessage.success('已退出登录')
+    router.push('/auth/login')
+  } catch {
+    // 用户取消
+  }
 }
 </script>
 
@@ -52,6 +78,13 @@ function handleMenuSelect(index) {
             <span>{{ item.label }}</span>
           </el-menu-item>
         </el-menu>
+
+        <div class="menu-footer">
+          <div class="user-info">
+            <el-icon><User /></el-icon>
+            <span>{{ username }}</span>
+          </div>
+        </div>
       </el-aside>
 
       <el-container>
@@ -60,7 +93,17 @@ function handleMenuSelect(index) {
             <strong>运营看板</strong>
             <p>围绕模型字段构建：分类、商品、用户、订单</p>
           </div>
-          <el-tag type="warning">GMV ¥{{ adminStore.dashboardStats.gmv.toFixed(2) }}</el-tag>
+          <div class="header-actions">
+            <el-tag type="warning">GMV ¥{{ adminStore.dashboardStats.gmv.toFixed(2) }}</el-tag>
+            <el-button
+              type="danger"
+              size="small"
+              :icon="SwitchButton"
+              @click="handleLogout"
+            >
+              退出登录
+            </el-button>
+          </div>
         </el-header>
 
         <el-main class="admin-main">
@@ -120,12 +163,36 @@ function handleMenuSelect(index) {
   color: #ffffff;
 }
 
+.menu-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #d9e2ec;
+  font-size: 14px;
+}
+
 .admin-header {
   height: auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px 12px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .admin-header p {
@@ -171,6 +238,17 @@ function handleMenuSelect(index) {
 
   .admin-aside {
     width: 200px !important;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 10px;
+  }
+
+  .admin-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 </style>

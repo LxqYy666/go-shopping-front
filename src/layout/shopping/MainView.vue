@@ -3,13 +3,15 @@ import HeaderView from './component/HeaderView.vue';
 import FooterView from './component/FooterView.vue';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAdminStore } from '@/stores/admin';
+import { useCartStore } from '@/stores/cart';
+import { useProductStore } from '@/stores/product';
 
 const router = useRouter();
-const adminStore = useAdminStore();
+const cartStore = useCartStore();
+const productStore = useProductStore();
 const isLoggedIn = computed(() => Boolean(localStorage.getItem('token')));
 const username = computed(() => localStorage.getItem('username') || '');
-const cartCount = ref(2);
+const cartCount = computed(() => cartStore.allCartQuantity);
 const selectedCategory = ref(0);
 
 function handleLogin() {
@@ -17,17 +19,26 @@ function handleLogin() {
 }
 
 function handleCartClick() {
-  console.log('购物车点击事件');
+  if (!isLoggedIn.value) {
+    router.push('/auth/login');
+  } else {
+    router.push('/cart');
+  }
 }
 
 const quickCategories = computed(() => [
   { id: 0, name: '全部推荐' },
-  ...adminStore.categoryList,
+  ...productStore.categoryList,
 ]);
 
-onMounted(() => {
-  adminStore.fetchCategoryList();
-  adminStore.fetchProductList();
+onMounted(async () => {
+  await productStore.fetchCategoryList();
+  await productStore.fetchProductList();
+  if (isLoggedIn.value) {
+    cartStore.fetchCart().catch(() => {
+      // 如果获取购物车失败（如 token 过期），忽略错误
+    });
+  }
 });
 
 </script>

@@ -1,6 +1,8 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { User, SwitchButton, UserFilled, ShoppingCart } from '@element-plus/icons-vue'
 
 const props = defineProps({
 	isLoggedIn: {
@@ -64,6 +66,33 @@ function isNavActive(path) {
 	}
 	return route.path.startsWith(path)
 }
+
+async function handleLogout() {
+	try {
+		await ElMessageBox.confirm('确定要退出登录吗？', '退出确认', {
+			type: 'warning',
+			confirmButtonText: '退出',
+			cancelButtonText: '取消',
+		})
+		
+		// 清除本地存储
+		localStorage.removeItem('token')
+		localStorage.removeItem('username')
+		localStorage.removeItem('email')
+		localStorage.removeItem('role')
+		localStorage.removeItem('userId')
+		localStorage.removeItem('avatar')
+		
+		ElMessage.success('已退出登录')
+		router.push('/auth/login')
+	} catch {
+		// 用户取消
+	}
+}
+
+function handleGoProfile() {
+	router.push('/profile/info')
+}
 </script>
 
 <template>
@@ -85,12 +114,30 @@ function isNavActive(path) {
 		</nav>
 
 		<div class="action-area">
-			<button class="user-entry" type="button" @click="handleUserClick">
+			<el-dropdown v-if="isLoggedIn" trigger="click">
+				<button class="user-entry" type="button">
+					<el-icon><UserFilled /></el-icon>
+					<span>{{ displayName }}</span>
+				</button>
+				<template #dropdown>
+					<el-dropdown-menu>
+						<el-dropdown-item :icon="User" @click="handleGoProfile">
+							个人中心
+						</el-dropdown-item>
+						<el-dropdown-item :icon="SwitchButton" divided @click="handleLogout">
+							退出登录
+						</el-dropdown-item>
+					</el-dropdown-menu>
+				</template>
+			</el-dropdown>
+
+			<button v-else class="user-entry" type="button" @click="handleUserClick">
 				{{ displayName }}
 			</button>
 
 			<button class="cart-entry" type="button" @click="handleCartClick">
 				<el-badge :value="cartCount" :max="99" class="cart-badge">
+					<el-icon><ShoppingCart /></el-icon>
 					<span class="cart-text">购物车</span>
 				</el-badge>
 			</button>
@@ -163,17 +210,26 @@ function isNavActive(path) {
 .cart-entry {
 	border: none;
 	background: transparent;
-	padding: 6px 8px;
+	padding: 6px 12px;
 	border-radius: 6px;
 	color: #606266;
 	cursor: pointer;
 	font-size: 14px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
 }
 
 .user-entry:hover,
 .cart-entry:hover {
 	background: #f5f7fa;
 	color: #409eff;
+}
+
+.cart-badge {
+	display: flex;
+	align-items: center;
+	gap: 6px;
 }
 
 .cart-text {

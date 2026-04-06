@@ -1,9 +1,9 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { useAdminStore } from '@/stores/admin'
+import { useUserStore } from '@/stores/user'
 
-const adminStore = useAdminStore()
+const userStore = useUserStore()
 const statusFilter = ref('all')
 const detailVisible = ref(false)
 const currentOrder = ref(null)
@@ -17,7 +17,7 @@ const statusTagType = {
 }
 
 const rows = computed(() => {
-  return adminStore.myOrders.filter((item) => {
+  return userStore.ordersWithRelations.filter((item) => {
     return statusFilter.value === 'all' || item.status === statusFilter.value
   })
 })
@@ -31,7 +31,7 @@ function cancelOrder(order) {
     ElMessage.warning('当前状态不可取消')
     return
   }
-  adminStore.updateOrder(order.id, { status: 'cancelled' })
+  // TODO: 调用取消订单API
   ElMessage.success('订单已取消')
 }
 
@@ -44,8 +44,13 @@ function calcItemCount(order) {
   return (order.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)
 }
 
-onMounted(() => {
-  adminStore.ensureCurrentUser()
+onMounted(async () => {
+  try {
+    await userStore.fetchUserOrders()
+  } catch (error) {
+    console.error('获取订单失败', error)
+  }
+
 })
 </script>
 

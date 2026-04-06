@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useAdminStore } from '@/stores/admin'
 
@@ -38,6 +38,12 @@ function openDetail(order) {
   currentOrder.value = order
   detailVisible.value = true
 }
+
+onMounted(() => {
+  adminStore.fetchOrderList()
+  adminStore.fetchUserList()
+  adminStore.fetchProductList()
+})
 </script>
 
 <template>

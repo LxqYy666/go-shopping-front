@@ -1,16 +1,19 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useAdminStore } from '@/stores/admin'
+import { useProductStore } from '@/stores/product'
 
 const keyword = ref('')
 const categoryId = ref(0)
 const loading = ref(false)
-const adminStore = useAdminStore()
+const productStore = useProductStore()
 
-const categoryOptions = computed(() => [{ id: 0, name: '全部分类' }, ...adminStore.categoryList])
+const categoryOptions = computed(() => [
+    { id: 0, name: '全部分类' }, 
+    ...productStore.categoryList
+])
 
 const results = computed(() => {
-    return adminStore.productsWithCategory.filter((item) => {
+    return productStore.productsWithCategory.filter((item) => {
         const matchKeyword =
             item.name.toLowerCase().includes(keyword.value.toLowerCase()) ||
             item.desc.toLowerCase().includes(keyword.value.toLowerCase())
@@ -22,7 +25,10 @@ const results = computed(() => {
 async function fetchData() {
     loading.value = true
     try {
-        await Promise.all([adminStore.fetchCategoryList(), adminStore.fetchProductList()])
+        await Promise.all([
+            productStore.fetchCategoryList(), 
+            productStore.fetchProductList()
+        ])
     } finally {
         loading.value = false
     }

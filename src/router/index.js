@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import MainView from '@/layout/shopping/MainView.vue'
 import RecommendView from '@/layout/shopping/RecommendView.vue'
 import SearchView from '@/layout/shopping/SearchView.vue'
+import CartView from '@/layout/shopping/CartView.vue'
 import AdminView from '@/layout/admin/AdminView.vue'
 import CategoryView from '@/layout/admin/CategoryView.vue'
 import ProductView from '@/layout/admin/ProductView.vue'
@@ -35,6 +36,10 @@ const router = createRouter({
           component:SearchView
         }
       ]
+    },
+    {
+      path: '/cart',
+      component: CartView,
     },
     {
       path:"/admin",
